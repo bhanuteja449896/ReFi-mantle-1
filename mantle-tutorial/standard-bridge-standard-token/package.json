@@ -1,0 +1,18 @@
+{
+  "name": "standard-bridge-tutorial",
+  "version": "1.0.0",
+  "license": "MIT",
+  "devDependencies": {
+    "ethers": "^5.4.0"
+  },
+  "dependencies": {
+    "@ethan-bedrock/sdk": "^1.19.0",
+    "dotenv": "^16.0.0",
+    "@openzeppelin/contracts": "^4.7.3"
+  },
+  "scripts": {
+    "local": "cp ../.env.local.tmp .env && node index.js && rm .env",
+    "testnet": "cp ../.env.testnet.tmp .env && node index.js && rm .env",
+    "script": "node index.js"
+  }
+}

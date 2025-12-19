@@ -1,0 +1,15 @@
+{
+  "name": "cross-dom-bridge-eth",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@mantleio/sdk": "^1.0.0",
+    "dotenv": "^16.0.0"
+  },
+  "scripts": {
+    "local": "cp ../.env.local.tmp .env && node index.js && rm .env",
+    "testnet": "cp ../.env.testnet.tmp .env && node index.js && rm .env",
+    "script": "node index.js"
+  }
+}
