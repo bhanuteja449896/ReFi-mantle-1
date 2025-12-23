@@ -21,7 +21,7 @@ module.exports = {
       accounts: [PRIVATE_KEY]
     },
     mantleTestnet: {
-      url: "https://rpc.testnet.mantle.xyz",
+      url: "https://rpc.sepolia.mantle.xyz",
       chainId: 5003,
       accounts: [PRIVATE_KEY]
     },

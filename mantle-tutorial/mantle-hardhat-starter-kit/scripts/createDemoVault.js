@@ -12,7 +12,9 @@ async function main() {
     juniorRatio: 3000, // 30%
     seniorYieldTarget: 500, // 5%
     riskBuffer: 1000, // 10%
-    stablecoin: "0x09Bc4E0D864854c6aFB6eB9A9cdF58aC190D0dF9" // Mantle Testnet USDC
+    // Use deployer address as mock stablecoin for testing
+    // In production, use actual USDC/USDT address
+    stablecoin: process.env.STABLECOIN_ADDRESS || "0x09Bc4E0D864854c6aFB6eB9A9cdF58aC190D0dF9" // Fallback to example address
   };
   
   console.log("🏗️ Creating demo tranche vault...");
@@ -20,12 +22,20 @@ async function main() {
   const [deployer] = await hre.ethers.getSigners();
   console.log("Using account:", deployer.address);
   
-  // Get factory contract
-  const factoryAddress = "REPLACE_WITH_FACTORY_ADDRESS"; // Will update after deploy
+  // Get factory contract - update this after deployment
+  const factoryAddress = process.env.FACTORY_ADDRESS || "REPLACE_WITH_FACTORY_ADDRESS";
+  
+  if (factoryAddress === "REPLACE_WITH_FACTORY_ADDRESS") {
+    console.error("❌ Error: Please set FACTORY_ADDRESS in .env or update this script");
+    console.log("Run deployment first: npm run deploy:testnet");
+    process.exit(1);
+  }
+  
   const TrancheFactory = await hre.ethers.getContractFactory("TrancheFactory");
   const factory = TrancheFactory.attach(factoryAddress);
   
   console.log("Creating vault for property:", config.propertyId);
+  console.log("Stablecoin address:", config.stablecoin);
   
   const tx = await factory.createVault(
     config.propertyId,

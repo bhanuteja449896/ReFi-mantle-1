@@ -216,6 +216,20 @@ describe("Real Estate Tokenization System", function() {
         )
       ).to.be.revertedWith("Already initialized");
     });
+    
+    it("Should allow owner to pause and unpause", async function() {
+      // Pause the vault
+      await vault.pause();
+      
+      // Check it's paused
+      expect(await vault.paused()).to.equal(true);
+      
+      // Unpause
+      await vault.unpause();
+      
+      // Check it's unpaused
+      expect(await vault.paused()).to.equal(false);
+    });
   });
 });
 

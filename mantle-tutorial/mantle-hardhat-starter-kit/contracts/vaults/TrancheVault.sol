@@ -4,11 +4,12 @@ pragma solidity ^0.8.19;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 import "../tokens/SeniorToken.sol";
 import "../tokens/JuniorToken.sol";
 import "../OracleAdapter.sol";
 
-contract TrancheVault is Ownable, ReentrancyGuard {
+contract TrancheVault is Ownable, ReentrancyGuard, Pausable {
     struct TrancheConfig {
         uint256 seniorRatio; // Basis points
         uint256 juniorRatio;
@@ -33,8 +34,11 @@ contract TrancheVault is Ownable, ReentrancyGuard {
     uint256 public lastRebalanceTime;
     
     event Deposited(address indexed user, bool isSenior, uint256 amount, uint256 tokensMinted);
+    event Withdrawn(address indexed user, bool isSenior, uint256 amount, uint256 tokensBurned);
     event YieldDistributed(uint256 seniorYield, uint256 juniorYield, uint256 timestamp);
     event Rebalanced(uint256 newSeniorYield, uint256 newJuniorYield, uint256 riskBuffer);
+    event EmergencyPaused(address indexed by, uint256 timestamp);
+    event EmergencyUnpaused(address indexed by, uint256 timestamp);
     
     constructor() {
         // Initialize in separate function
@@ -82,7 +86,7 @@ contract TrancheVault is Ownable, ReentrancyGuard {
         isActive = true;
     }
     
-    function deposit(bool isSenior, uint256 amount) external nonReentrant {
+    function deposit(bool isSenior, uint256 amount) external nonReentrant whenNotPaused {
         require(isActive, "Vault not active");
         require(amount > 0, "Zero amount");
         
@@ -112,6 +116,40 @@ contract TrancheVault is Ownable, ReentrancyGuard {
         }
         
         emit Deposited(msg.sender, isSenior, amount, tokensToMint);
+    }
+    
+    function withdraw(bool isSenior, uint256 tokenAmount) external nonReentrant whenNotPaused {
+        require(isActive, "Vault not active");
+        require(tokenAmount > 0, "Zero amount");
+        
+        // Check user has enough tokens
+        if (isSenior) {
+            require(seniorToken.balanceOf(msg.sender) >= tokenAmount, "Insufficient senior tokens");
+        } else {
+            require(juniorToken.balanceOf(msg.sender) >= tokenAmount, "Insufficient junior tokens");
+        }
+        
+        // Calculate withdrawal amount (1:1 for now, can add share price logic later)
+        uint256 withdrawAmount = tokenAmount;
+        
+        // Check vault has enough liquidity
+        require(IERC20(stablecoin).balanceOf(address(this)) >= withdrawAmount, "Insufficient liquidity");
+        
+        // Update tranche deposits
+        if (isSenior) {
+            config.seniorDeposits -= withdrawAmount;
+            seniorToken.burn(msg.sender, tokenAmount);
+        } else {
+            config.juniorDeposits -= withdrawAmount;
+            juniorToken.burn(msg.sender, tokenAmount);
+        }
+        
+        config.totalDeposits -= withdrawAmount;
+        
+        // Transfer stablecoins back
+        IERC20(stablecoin).transfer(msg.sender, withdrawAmount);
+        
+        emit Withdrawn(msg.sender, isSenior, withdrawAmount, tokenAmount);
     }
     
     function distributeYield(uint256 yieldAmount) external onlyOwner {
@@ -162,5 +200,29 @@ contract TrancheVault is Ownable, ReentrancyGuard {
         
         lastRebalanceTime = block.timestamp;
         emit Rebalanced(config.seniorYieldTarget, config.juniorYieldTarget, config.riskBuffer);
+    }
+    
+    // Emergency functions
+    function pause() external onlyOwner {
+        _pause();
+        emit EmergencyPaused(msg.sender, block.timestamp);
+    }
+    
+    function unpause() external onlyOwner {
+        _unpause();
+        emit EmergencyUnpaused(msg.sender, block.timestamp);
+    }
+    
+    // View functions
+    function getVaultBalance() external view returns (uint256) {
+        return IERC20(stablecoin).balanceOf(address(this));
+    }
+    
+    function getUserBalance(address user, bool isSenior) external view returns (uint256) {
+        if (isSenior) {
+            return seniorToken.balanceOf(user);
+        } else {
+            return juniorToken.balanceOf(user);
+        }
     }
 }
